@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Home, Calendar, List, Plus, X, Bell, Camera, ChevronLeft, ChevronRight, Trash2, Settings } from 'lucide-react';
+import {
+  loadAll,
+  upsertSchedule,
+  deleteScheduleRow,
+  upsertDday,
+  deleteDdayRow,
+  addPhotoWithUpload,
+  deletePhotoRow,
+  upsertSettings,
+} from './lib/dataStore.js';
 
-const STORAGE_KEYS = { SCHEDULES: 'schedules', DDAYS: 'ddays', PHOTOS: 'photos', SETTINGS: 'settings' };
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS_KO = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
 const DDAY_EMOJIS = ['📌', '❤️', '💍', '🎂', '✈️', '🎉', '🏠', '👶', '🐶', '⭐'];
@@ -766,41 +775,26 @@ export default function CoupleScheduleApp() {
 
   useEffect(() => {
     let cancelled = false;
-    async function loadAll() {
+    async function load() {
       try {
-        const results = await Promise.allSettled([
-          window.storage.get(STORAGE_KEYS.SCHEDULES, true),
-          window.storage.get(STORAGE_KEYS.DDAYS, true),
-          window.storage.get(STORAGE_KEYS.PHOTOS, true),
-          window.storage.get(STORAGE_KEYS.SETTINGS, true),
-        ]);
+        const { schedules: s, ddays: d, photos: p, settings: st } = await loadAll();
         if (cancelled) return;
-        const [sRes, dRes, pRes, stRes] = results;
-        if (sRes.status === 'fulfilled' && sRes.value) {
-          try {
-            const loaded = JSON.parse(sRes.value.value);
-            setSchedules(Array.isArray(loaded) ? loaded.map((s) => ({
-              ...s,
-              category: s.category || (s.person === 'both' ? 'shared' : 'personal')
-            })) : []);
-          } catch (e) {}
-        }
-        if (dRes.status === 'fulfilled' && dRes.value) {
-          try { setDdays(JSON.parse(dRes.value.value)); } catch (e) {}
-        }
-        if (pRes.status === 'fulfilled' && pRes.value) {
-          try { setPhotos(JSON.parse(pRes.value.value)); } catch (e) {}
-        }
-        if (stRes.status === 'fulfilled' && stRes.value) {
-          try { setSettings(JSON.parse(stRes.value.value)); } catch (e) {}
-        }
+        setSchedules(
+          s.map((item) => ({
+            ...item,
+            category: item.category || (item.person === 'both' ? 'shared' : 'personal'),
+          }))
+        );
+        setDdays(d);
+        setPhotos(p);
+        setSettings(st);
       } catch (e) {
         console.error('load failed', e);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    loadAll();
+    load();
     return () => { cancelled = true; };
   }, []);
 
@@ -820,14 +814,6 @@ export default function CoupleScheduleApp() {
     return () => clearInterval(t);
   }, [schedules]);
 
-  async function persist(key, value) {
-    try {
-      await window.storage.set(key, JSON.stringify(value), true);
-    } catch (e) {
-      console.error('persist failed', key, e);
-    }
-  }
-
   function handleDismissReminder(id) {
     dismissedRef.current.add(id);
     setDueReminders((prev) => prev.filter((s) => s.id !== id));
@@ -846,14 +832,14 @@ export default function CoupleScheduleApp() {
     const exists = schedules.some((s) => s.id === schedule.id);
     const next = exists ? schedules.map((s) => (s.id === schedule.id ? schedule : s)) : [...schedules, schedule];
     setSchedules(next);
-    persist(STORAGE_KEYS.SCHEDULES, next);
+    upsertSchedule(schedule);
     setShowScheduleModal(false);
     setEditingSchedule(null);
   }
   function handleDeleteSchedule(id) {
     const next = schedules.filter((s) => s.id !== id);
     setSchedules(next);
-    persist(STORAGE_KEYS.SCHEDULES, next);
+    deleteScheduleRow(id);
     setShowScheduleModal(false);
     setEditingSchedule(null);
   }
@@ -870,34 +856,38 @@ export default function CoupleScheduleApp() {
     const exists = ddays.some((d) => d.id === dday.id);
     const next = exists ? ddays.map((d) => (d.id === dday.id ? dday : d)) : [...ddays, dday];
     setDdays(next);
-    persist(STORAGE_KEYS.DDAYS, next);
+    upsertDday(dday);
     setShowDdayModal(false);
     setEditingDday(null);
   }
   function handleDeleteDday(id) {
     const next = ddays.filter((d) => d.id !== id);
     setDdays(next);
-    persist(STORAGE_KEYS.DDAYS, next);
+    deleteDdayRow(id);
     setShowDdayModal(false);
     setEditingDday(null);
   }
 
-  function handleAddPhoto(photo) {
+  async function handleAddPhoto(photo) {
+    // 먼저 화면에는 즉시 반영하고(로컬 미리보기), 업로드가 끝나면 실제 URL로 교체한다.
     const next = [photo, ...photos];
     setPhotos(next);
-    persist(STORAGE_KEYS.PHOTOS, next);
     setShowPhotoModal(false);
+    const uploaded = await addPhotoWithUpload(photo);
+    if (uploaded) {
+      setPhotos((prev) => prev.map((p) => (p.id === photo.id ? uploaded : p)));
+    }
   }
   function handleDeletePhoto(id) {
     const next = photos.filter((p) => p.id !== id);
     setPhotos(next);
-    persist(STORAGE_KEYS.PHOTOS, next);
+    deletePhotoRow(id);
     setViewingPhoto(null);
   }
 
   function handleSaveSettings(newSettings) {
     setSettings(newSettings);
-    persist(STORAGE_KEYS.SETTINGS, newSettings);
+    upsertSettings(newSettings);
     setShowSettingsModal(false);
   }
 
