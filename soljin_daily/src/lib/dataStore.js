@@ -9,9 +9,9 @@ function eventFromRow(r) {
   return {
     id: r.id,
     title: r.title,
-    date: r.date,
+    date: r.start_date,
     endDate: r.end_date,
-    time: r.time,
+    time: r.start_time,
     person: r.person,
     category: r.category,
     reminder: r.reminder,
@@ -23,9 +23,9 @@ function eventToRow(s) {
   return {
     id: s.id,
     title: s.title,
-    date: s.date,
+    start_date: s.date,
     end_date: s.endDate,
-    time: s.time,
+    start_time: s.time,
     person: s.person,
     category: s.category,
     reminder: s.reminder,
