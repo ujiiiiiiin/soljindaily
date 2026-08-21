@@ -173,3 +173,4 @@ export async function upsertSettings(settings) {
   if (error) console.error('upsertSettings failed', error);
   return !error;
 }
+
