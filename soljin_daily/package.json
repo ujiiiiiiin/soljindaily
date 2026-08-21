@@ -1,14 +1,14 @@
 {
-  "name": "couple-schedule-app-preview",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
+  "이름": "커플 스케줄 앱 미리보기",
+  "비공개": 맞습니다.
+  "버전": "1.0.0",
+  "유형": "모듈",
+  "스크립트": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "빌드": "vite 빌드",
+    "미리보기": "vite 미리보기"
   },
-  "dependencies": {
+  "종속성": {
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
